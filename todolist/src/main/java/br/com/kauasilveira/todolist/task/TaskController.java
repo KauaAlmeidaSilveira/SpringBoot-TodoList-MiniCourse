@@ -1,15 +1,15 @@
 package br.com.kauasilveira.todolist.task;
 
+import br.com.kauasilveira.todolist.utils.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -20,7 +20,7 @@ public class TaskController {
     private ITaskRepository iTaskRepository;
 
     @PostMapping("/")
-    public ResponseEntity create(@RequestBody TaskModel taskModel, HttpServletRequest request) {
+    public ResponseEntity createTask(@RequestBody TaskModel taskModel, HttpServletRequest request) {
         taskModel.setIdUser((UUID) request.getAttribute("idUser"));
 
         var currentDate = LocalDateTime.now();
@@ -33,6 +33,29 @@ public class TaskController {
         }
 
         var task = this.iTaskRepository.save(taskModel);
-        return ResponseEntity.status(HttpStatus.OK).body(task);
+        return ResponseEntity.status(HttpStatus.CREATED).body(task);
+    }
+
+    @GetMapping("/")
+    public List<TaskModel> ListTasks (HttpServletRequest request){
+        return this.iTaskRepository.findAllByIdUser((UUID) request.getAttribute("idUser"));
+    }
+
+    @PutMapping("/{idTask}")
+    public ResponseEntity updateTask(@RequestBody TaskModel taskModel, HttpServletRequest request, @PathVariable UUID idTask){
+
+        var task = this.iTaskRepository.findById(idTask).orElse(null);
+
+        if(task == null){
+            return ResponseEntity.status(400).body("Tarefa não encontrada!");
+        }
+
+        if(!task.getIdUser().equals(request.getAttribute("idUser"))){
+            return ResponseEntity.status(400).body("Usuario não tem permissão para alterar essa tarefa");
+        }
+
+        Utils.copyNonNullProperties(taskModel, task);
+
+        return ResponseEntity.status(201).body(this.iTaskRepository.save(task));
     }
 }
